@@ -270,12 +270,35 @@ kunstmaanbundles.richEditor = (function (window, undefined) {
                             a.setValue("");
                         }
                     }
-                    
+
                     this.allowOnChange = !0
                 };
 
             }
         });
+
+        CKEDITOR.on('instanceReady', function (e) {
+            var editor = e.editor;
+
+            if (editor.element.hasAttribute('maxlength') && !(editor.config).hasOwnProperty('wordcount')) {
+                var maxLength = editor.element.getAttribute('maxlength');
+                var newConfig = editor.config;
+
+                newConfig.extraPlugins = 'wordcount';
+                newConfig.wordcount = {
+                    showParagraphs: false,
+                    showWordCount: false,
+                    showCharCount: true,
+                    countSpacesAsChars: true,
+                    countHTML: false,
+                    maxCharCount: parseInt(maxLength, 10),
+                };
+
+                CKEDITOR.instances[editor.name].destroy();
+                CKEDITOR.replace(editor.name, newConfig);
+            }
+        });
+
 
         $el.addClass('js-rich-editor--enabled');
 
@@ -298,12 +321,13 @@ kunstmaanbundles.richEditor = (function (window, undefined) {
     destroyAllRichEditors = function () {
         for (instance in CKEDITOR.instances) {
             var $el = $('#' + CKEDITOR.instances[instance].name);
+            var ckEditorInstance = CKEDITOR.instances[instance];
 
-            if ($el.hasClass('js-rich-editor')) {
+            if (ckEditorInstance.instanceReady && $el.hasClass('js-rich-editor')) {
                 $el.removeClass('js-rich-editor--enabled');
 
-                CKEDITOR.instances[instance].updateElement();
-                CKEDITOR.instances[instance].destroy(true);
+                ckEditorInstance.updateElement();
+                ckEditorInstance.destroy(true);
             }
             ;
         }

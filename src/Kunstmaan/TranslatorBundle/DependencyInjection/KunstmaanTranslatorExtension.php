@@ -8,6 +8,7 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Loader;
 use Symfony\Component\Finder\Finder;
 use Symfony\Component\HttpKernel\DependencyInjection\Extension;
+use Symfony\Component\HttpKernel\Kernel;
 
 /**
  * This is the class that loads and manages your bundle configuration
@@ -17,7 +18,7 @@ use Symfony\Component\HttpKernel\DependencyInjection\Extension;
 class KunstmaanTranslatorExtension extends Extension
 {
     /**
-     * {@inheritDoc}
+     * {@inheritdoc}
      */
     public function load(array $configs, ContainerBuilder $container)
     {
@@ -28,13 +29,16 @@ class KunstmaanTranslatorExtension extends Extension
             return;
         }
 
-        if(!$container->hasParameter('requiredlocales')) {
+        if (!$container->hasParameter('requiredlocales')) {
             $container->setParameter('requiredlocales', ['nl', 'fr', 'en']);
         }
         $container->setParameter('kuma_translator.enabled', $config['enabled']);
         $container->setParameter('kuma_translator.default_bundle', $config['default_bundle']);
         $container->setParameter('kuma_translator.bundles', $config['bundles']);
         $container->setParameter('kuma_translator.cache_dir', $config['cache_dir']);
+        if (empty($config['managed_locales']) && $container->hasParameter('requiredlocales')) {
+            $config['managed_locales'] = explode('|', $container->getParameter('requiredlocales'));
+        }
         $container->setParameter('kuma_translator.managed_locales', $config['managed_locales']);
         $container->setParameter('kuma_translator.file_formats', $config['file_formats']);
         $container->setParameter('kuma_translator.storage_engine.type', $config['storage_engine']['type']);
@@ -58,12 +62,12 @@ class KunstmaanTranslatorExtension extends Extension
         $this->registerTranslatorConfiguration($config, $container);
 
         // overwrites everything
-        $translator->addMethodCall('addDatabaseResources', array());
+        $translator->addMethodCall('addDatabaseResources', []);
 
-        $translator->addMethodCall('setFallbackLocales', array(array('en')));
+        $translator->addMethodCall('setFallbackLocales', [['en']]);
 
-        if($container->hasParameter('defaultlocale')) {
-            $translator->addMethodCall('setFallbackLocales', array(array($container->getParameter('defaultlocale'))));
+        if ($container->hasParameter('kunstmaan_admin.default_locale')) {
+            $translator->addMethodCall('setFallbackLocales', [[$container->getParameter('kunstmaan_admin.default_locale')]]);
         }
     }
 
@@ -76,7 +80,7 @@ class KunstmaanTranslatorExtension extends Extension
     {
         $translator = $container->getDefinition('kunstmaan_translator.service.translator.translator');
 
-        $dirs = array();
+        $dirs = [];
         if (class_exists('Symfony\Component\Validator\Validation')) {
             $r = new \ReflectionClass('Symfony\Component\Validator\Validation');
 
@@ -87,7 +91,13 @@ class KunstmaanTranslatorExtension extends Extension
 
             $dirs[] = dirname($r->getFilename()).'/Resources/translations';
         }
-        $overridePath = $container->getParameter('kernel.root_dir').'/Resources/%s/translations';
+
+        if (Kernel::VERSION_ID < 4000) {
+            $overridePath = $container->getParameter('kernel.root_dir').'/Resources/%s/translations';
+        } else {
+            $overridePath = $container->getParameter('kernel.project_dir').'/translations';
+        }
+
         foreach ($container->getParameter('kernel.bundles') as $bundle => $class) {
             $reflection = new \ReflectionClass($class);
             if (is_dir($dir = dirname($reflection->getFilename()).'/Resources/translations')) {
@@ -97,7 +107,14 @@ class KunstmaanTranslatorExtension extends Extension
                 $dirs[] = $dir;
             }
         }
-        if (is_dir($dir = $container->getParameter('kernel.root_dir').'/Resources/translations')) {
+
+        if (Kernel::VERSION_ID < 4000) {
+            $dir = $container->getParameter('kernel.root_dir').'/Resources/translations';
+        } else {
+            $dir = $container->getParameter('kernel.project_dir').'/translations';
+        }
+
+        if (is_dir($dir)) {
             $dirs[] = $dir;
         }
 
@@ -110,16 +127,18 @@ class KunstmaanTranslatorExtension extends Extension
             $finder = Finder::create();
             $finder->files();
 
-                $finder->filter(function (\SplFileInfo $file) {
+            $finder->filter(
+                function (\SplFileInfo $file) {
                     return 2 === substr_count($file->getBasename(), '.') && preg_match('/\.\w+$/', $file->getBasename());
-                });
+                }
+            );
 
             $finder->in($dirs);
 
             foreach ($finder as $file) {
                 // filename is domain.locale.format
                 list($domain, $locale, $format) = explode('.', $file->getBasename());
-                $translator->addMethodCall('addResource', array($format, (string) $file, $locale, $domain));
+                $translator->addMethodCall('addResource', [$format, (string) $file, $locale, $domain]);
             }
         }
     }

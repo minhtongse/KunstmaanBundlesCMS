@@ -8,11 +8,11 @@ use Kunstmaan\MultiDomainBundle\Helper\DomainConfiguration;
 use Kunstmaan\NodeBundle\Entity\Node;
 use Kunstmaan\NodeBundle\Entity\NodeTranslation;
 use Kunstmaan\NodeBundle\Entity\StructureNode;
-use Sensio\Bundle\FrameworkExtraBundle\Configuration\Route;
+use Symfony\Component\Routing\Annotation\Route;
 use Sensio\Bundle\FrameworkExtraBundle\Configuration\Template;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
-use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 
 /**
  * WidgetsController
@@ -24,13 +24,14 @@ class WidgetsController extends Controller
      * @Template("KunstmaanNodeBundle:Widgets:selectLink.html.twig")
      *
      * @param \Symfony\Component\HttpFoundation\Request $request
+     *
      * @return array
      */
     public function ckSelectLinkAction(Request $request)
     {
         $params = $this->getTemplateParameters($request);
         $params['cke'] = true;
-        $params['multilanguage'] = $this->getParameter('multilanguage');
+        $params['multilanguage'] = $this->getParameter('kunstmaan_admin.multi_language');
 
         return $params;
     }
@@ -42,13 +43,14 @@ class WidgetsController extends Controller
      * @Template("KunstmaanNodeBundle:Widgets:selectLink.html.twig")
      *
      * @param \Symfony\Component\HttpFoundation\Request $request
+     *
      * @return array
      */
     public function selectLinkAction(Request $request)
     {
         $params = $this->getTemplateParameters($request);
         $params['cke'] = false;
-        $params['multilanguage'] = $this->getParameter('multilanguage');
+        $params['multilanguage'] = $this->getParameter('kunstmaan_admin.multi_language');
 
         return $params;
     }
@@ -59,6 +61,7 @@ class WidgetsController extends Controller
      * @Route("/select-nodes-lazy", name="KunstmaanNodeBundle_nodes_lazy")
      *
      * @param \Symfony\Component\HttpFoundation\Request $request
+     *
      * @return JsonResponse
      */
     public function selectNodesLazyAction(Request $request)
@@ -83,6 +86,7 @@ class WidgetsController extends Controller
         }
 
         $results = $this->nodesToArray($locale, $rootItems, $depth);
+
         return new JsonResponse($results);
     }
 
@@ -91,6 +95,7 @@ class WidgetsController extends Controller
      * default link chooser and the cke link chooser.
      *
      * @param \Symfony\Component\HttpFoundation\Request $request
+     *
      * @return array
      */
     private function getTemplateParameters(Request $request)
@@ -112,7 +117,7 @@ class WidgetsController extends Controller
         }
 
         return [
-            'mediaChooserLink' => $mediaChooserLink
+            'mediaChooserLink' => $mediaChooserLink,
         ];
     }
 
@@ -138,9 +143,9 @@ class WidgetsController extends Controller
     /**
      * Determine if current node is a structure node.
      *
-     * @param string $locale
+     * @param string                 $locale
      * @param Node[]|ArrayCollection $rootNodes
-     * @param integer $depth
+     * @param int                    $depth
      *
      * @return array
      */
@@ -158,16 +163,27 @@ class WidgetsController extends Controller
         foreach ($rootNodes as $rootNode) {
             if ($nodeTranslation = $rootNode->getNodeTranslation($locale, true)) {
                 if ($isMultiDomain && !$switched) {
-                    $slug = sprintf("[%s:%s]", $switchedHost['id'], "NT" . $nodeTranslation->getId());
+                    $slug = sprintf('[%s:%s]', $switchedHost['id'], 'NT'.$nodeTranslation->getId());
                 } else {
-                    $slug = sprintf("[%s]", "NT" . $nodeTranslation->getId());
+                    $slug = sprintf('[%s]', 'NT'.$nodeTranslation->getId());
+                }
+
+                switch (true) {
+                    case !$nodeTranslation->isOnline():
+                        $type = 'offline';
+                        break;
+                    case $rootNode->isHiddenFromNav():
+                        $type = 'hidden-from-nav';
+                        break;
+                    default:
+                        $type = 'default';
                 }
 
                 $root = [
                     'id' => $rootNode->getId(),
-                    'type' => $nodeTranslation->isOnline() ? "default" : "offline",
+                    'type' => $type,
                     'text' => $nodeTranslation->getTitle(),
-                    'li_attr' => ['class' => 'js-url-chooser-link-select', 'data-slug' => $slug, 'data-id' => $rootNode->getId()]
+                    'li_attr' => ['class' => 'js-url-chooser-link-select', 'data-slug' => $slug, 'data-id' => $rootNode->getId()],
                 ];
 
                 if ($rootNode->getChildren()->count()) {

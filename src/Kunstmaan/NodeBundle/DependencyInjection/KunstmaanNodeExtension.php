@@ -17,7 +17,7 @@ use Symfony\Component\HttpKernel\DependencyInjection\Extension;
 class KunstmaanNodeExtension extends Extension implements PrependExtensionInterface
 {
     /**
-     * {@inheritDoc}
+     * {@inheritdoc}
      */
     public function load(array $configs, ContainerBuilder $container)
     {
@@ -36,11 +36,13 @@ class KunstmaanNodeExtension extends Extension implements PrependExtensionInterf
         $container->setDefinition('kunstmaan_node.pages_configuration', $nodePagesDefinition);
 
         $container->setParameter('kunstmaan_node.show_add_homepage', $config['show_add_homepage']);
+        $container->setParameter('kunstmaan_node.enable_export_page_template', $config['enable_export_page_template']);
         $container->setParameter('kunstmaan_node.lock_check_interval', $config['lock']['check_interval']);
         $container->setParameter('kunstmaan_node.lock_threshold', $config['lock']['threshold']);
         $container->setParameter('kunstmaan_node.lock_enabled', $config['lock']['enabled']);
 
         $loader->load('services.yml');
+        $loader->load('commands.yml');
     }
 
     public function prepend(ContainerBuilder $container)
