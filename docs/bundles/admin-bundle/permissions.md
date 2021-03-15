@@ -5,15 +5,14 @@ First we have to configure the connection that the ACL system is supposed to use
 
 ```yaml
 # app/config/security.yml
-security:
-    acl:
-        connection: default
+acl:
+    connection: default
 ```
 
 After the connection is configured, we have to import the database structure, you do that by running
 
 ```
-bin/console init:acl
+bin/console kuma:init:acl
 ```
 
 Without this you will not be able to use ACL permission support.
